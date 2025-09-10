@@ -17,3 +17,10 @@ spring:
   devtools:
     restart:
       enabled: true
+
+
+  mqtt:
+    broker: tcp://localhost:1883
+    clientId: backend-subscriber
+    topic: device/temperature_humidity
+
