@@ -3,6 +3,7 @@ package org.thingsboard.userauth.controller;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.thingsboard.userauth.dto.DeviceDataDTO;
 import org.thingsboard.userauth.model.DeviceData;
 import org.thingsboard.userauth.service.DeviceDataService;
 
@@ -27,5 +28,12 @@ public class DeviceDataController {
     public ResponseEntity<List<DeviceData>> getLatestDeviceData(@PathVariable int limit) {
         List<DeviceData> data = deviceDataService.getLatestDeviceData(limit);
         return ResponseEntity.ok(data);
+    }
+
+    // Add new telemetry from device
+    @PostMapping("/add")
+    public ResponseEntity<DeviceData> addDeviceData(@RequestBody DeviceDataDTO dto) {
+        DeviceData savedData = deviceDataService.saveDeviceData(dto);
+        return ResponseEntity.ok(savedData);
     }
 }

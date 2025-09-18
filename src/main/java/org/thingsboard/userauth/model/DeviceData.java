@@ -1,13 +1,16 @@
 package org.thingsboard.userauth.model;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-
+import lombok.*;
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "device_data")
 @Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class DeviceData {
 
     @Id
@@ -23,13 +26,15 @@ public class DeviceData {
     @Column(nullable = false)
     private LocalDateTime timestamp;
 
-    // Default constructor required by JPA
-    public DeviceData() {}
+    // ✅ Link each DeviceData record to a Device
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "device_id", nullable = false)
+    private Device device;
 
-    // Constructor to create object easily
-    public DeviceData(Double temperature, Double humidity, LocalDateTime timestamp) {
-        this.temperature = temperature;
-        this.humidity = humidity;
-        this.timestamp = timestamp;
+    @PrePersist
+    protected void onCreate() {
+        if (this.timestamp == null) {
+            this.timestamp = LocalDateTime.now();
+        }
     }
 }

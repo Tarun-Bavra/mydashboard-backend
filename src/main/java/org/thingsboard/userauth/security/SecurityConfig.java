@@ -37,6 +37,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/user/**").hasAuthority("USER")
 
                         .requestMatchers("/api/telemetry/**").permitAll()
+                        .requestMatchers("/api/alarms/**").permitAll()   // <-- add this line
+
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

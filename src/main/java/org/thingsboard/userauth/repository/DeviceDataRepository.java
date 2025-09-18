@@ -6,6 +6,6 @@ import org.thingsboard.userauth.model.DeviceData;
 
 @Repository
 public interface DeviceDataRepository extends JpaRepository<DeviceData, Long> {
-    // JpaRepository provides basic CRUD operations
-    // No need to write any method for saving or finding all
+    // Only DeviceData-related queries go here
+    // (no deviceIdentifier since that's in Device, not DeviceData)
 }

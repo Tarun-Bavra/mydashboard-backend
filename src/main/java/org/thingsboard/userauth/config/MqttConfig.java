@@ -1,10 +1,9 @@
 package org.thingsboard.userauth.config;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
-import org.springframework.beans.factory.annotation.Value;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.integration.annotation.ServiceActivator;
@@ -17,33 +16,36 @@ import org.springframework.integration.mqtt.support.DefaultPahoMessageConverter;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.MessageHandler;
 import org.thingsboard.userauth.dto.DeviceDataDTO;
+import org.thingsboard.userauth.model.Device;
 import org.thingsboard.userauth.model.DeviceData;
 import org.thingsboard.userauth.repository.DeviceDataRepository;
+import org.thingsboard.userauth.repository.DeviceRepository;
 
 import java.time.LocalDateTime;
 
 @Configuration
 public class MqttConfig {
 
-    @Value("${spring.mqtt.broker}")
+    private static final Logger logger = LoggerFactory.getLogger(MqttConfig.class);
+
+    private final DeviceDataRepository deviceDataRepository;
+    private final DeviceRepository deviceRepository;
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
+    @org.springframework.beans.factory.annotation.Value("${spring.mqtt.broker}")
     private String brokerUrl;
 
-    @Value("${spring.mqtt.clientId}")
+    @org.springframework.beans.factory.annotation.Value("${spring.mqtt.clientId}")
     private String clientId;
 
-    @Value("${spring.mqtt.topic}")
+    @org.springframework.beans.factory.annotation.Value("${spring.mqtt.topic}")
     private String topic;
 
-    private static final Logger logger = LoggerFactory.getLogger(MqttConfig.class);
-    private final DeviceDataRepository deviceDataRepository;
-    private final ObjectMapper objectMapper = new ObjectMapper(); // JSON parser
-
-    // Constructor-based injection (best practice)
-    public MqttConfig(DeviceDataRepository deviceDataRepository) {
+    public MqttConfig(DeviceDataRepository deviceDataRepository, DeviceRepository deviceRepository) {
         this.deviceDataRepository = deviceDataRepository;
+        this.deviceRepository = deviceRepository;
     }
 
-    // Factory that manages MQTT connection
     @Bean
     public MqttPahoClientFactory mqttClientFactory() {
         DefaultMqttPahoClientFactory factory = new DefaultMqttPahoClientFactory();
@@ -53,13 +55,11 @@ public class MqttConfig {
         return factory;
     }
 
-    // Channel to receive messages
     @Bean
     public MessageChannel mqttInputChannel() {
         return new DirectChannel();
     }
 
-    // Adapter that subscribes to MQTT broker
     @Bean
     public MessageProducer inbound() {
         MqttPahoMessageDrivenChannelAdapter adapter =
@@ -71,32 +71,37 @@ public class MqttConfig {
         return adapter;
     }
 
-    // Message handler to process incoming MQTT messages and save to PostgreSQL
     @Bean
     @ServiceActivator(inputChannel = "mqttInputChannel")
     public MessageHandler handler() {
         return message -> {
             try {
                 String payload = message.getPayload().toString();
-                System.out.println("Received MQTT message: " + payload);
+                logger.info("Received MQTT message: {}", payload);
 
-                // Convert JSON string to DTO
+                // Parse JSON payload to DTO
                 DeviceDataDTO dto = objectMapper.readValue(payload, DeviceDataDTO.class);
 
-                // Create entity with timestamp
-                DeviceData deviceData = new DeviceData(
-                        dto.getTemperature(),
-                        dto.getHumidity(),
-                        LocalDateTime.now()
-                );
+                // Fetch the device from repository using DeviceRepository
+                Device device = deviceRepository.findById(dto.getDeviceId()).orElse(null);
+                if (device == null) {
+                    logger.warn("Device not found for id: {}", dto.getDeviceId());
+                    return; // skip saving if device not found
+                }
 
-                // Save to PostgreSQL
+                // Save telemetry linked to the device
+                DeviceData deviceData = DeviceData.builder()
+                        .temperature(dto.getTemperature())
+                        .humidity(dto.getHumidity())
+                        .timestamp(LocalDateTime.now())
+                        .device(device) // link to Device
+                        .build();
+
                 deviceDataRepository.save(deviceData);
 
             } catch (Exception e) {
                 logger.error("Failed to process MQTT message: {}", message.getPayload(), e);
             }
-
         };
     }
 }

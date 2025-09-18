@@ -9,6 +9,8 @@ import org.thingsboard.userauth.dto.SignupRequest;
 import org.thingsboard.userauth.service.UserService;
 
 import java.util.Optional;
+import jakarta.validation.Valid;
+import org.thingsboard.userauth.dto.SignupRequest;
 
 @RestController
 @RequestMapping("/api/auth")
